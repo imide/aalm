@@ -3,12 +3,11 @@ package commands
 
 import (
 	"github.com/bwmarrin/discordgo"
-	"github.com/imide/aalm/util/bloxlink"
 	"log"
 )
 
 // createOptions creates and returns the command options dynamically.
-func createOptions(optionTypes []discordgo.ApplicationCommandOptionType, optionNames []string, optionDescriptions []string) []*discordgo.ApplicationCommandOption {
+func CreateOptions(optionTypes []discordgo.ApplicationCommandOptionType, optionNames []string, optionDescriptions []string) []*discordgo.ApplicationCommandOption {
 	var options []*discordgo.ApplicationCommandOption
 
 	for i := 0; i < len(optionTypes); i++ {
@@ -24,30 +23,15 @@ func createOptions(optionTypes []discordgo.ApplicationCommandOptionType, optionN
 	return options
 }
 
-func getUser(s *discordgo.Session, i *discordgo.InteractionCreate) (string, string) {
-	userId := i.ApplicationCommandData().Options[0].UserValue(s).ID
-	robloxId, _ := bloxlink.GetRobloxId(userId)
-	return userId, robloxId
-}
-
-func isBloxlinkFailed(robloxId string) bool {
-	return robloxId == "Bloxlink Connection Failed"
-}
-
-func handleBloxlinkFailure(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	embed := createEmbed("❌ | **Cancelled**", "User not verified with Bloxlink.", 0xFF0000)
-	sendInteractionResponse(s, i, embed)
-}
-
 func handleUserDoesNotExist(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	embed := createEmbed("⚠️ | **Warning**", "The user specified is not registered in the database. Please create the user with /adduser before continuing.", 0xffcc4d)
-	sendInteractionResponse(s, i, embed)
+	embed := CreateEmbed("⚠️ | **Warning**", "The user specified is not registered in the database. Please create the user with /adduser before continuing.", 0xffcc4d)
+	SendInteractionResponse(s, i, embed)
 }
 
 func promptUserCreation(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
-	embed := createEmbed("⚠️ | **Warning**", "Would you like to create a new user?", 0xffcc4d)
+	embed := CreateEmbed("⚠️ | **Warning**", "Would you like to create a new user?", 0xffcc4d)
 
-	confirmed := sendConfirmation(s, i, embed)
+	confirmed := SendConfirmation(s, i, embed)
 
 	switch confirmed {
 	case true:
@@ -61,7 +45,7 @@ func promptUserCreation(s *discordgo.Session, i *discordgo.InteractionCreate) bo
 	return false
 }
 
-func createEmbed(title string, description string, color int) *discordgo.MessageEmbed {
+func CreateEmbed(title string, description string, color int) *discordgo.MessageEmbed {
 	return &discordgo.MessageEmbed{
 		Title:       title,
 		Description: description,
@@ -69,7 +53,7 @@ func createEmbed(title string, description string, color int) *discordgo.Message
 	}
 }
 
-func sendInteractionResponse(s *discordgo.Session, i *discordgo.InteractionCreate, embed *discordgo.MessageEmbed) {
+func SendInteractionResponse(s *discordgo.Session, i *discordgo.InteractionCreate, embed *discordgo.MessageEmbed) {
 	response := &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -83,7 +67,7 @@ func sendInteractionResponse(s *discordgo.Session, i *discordgo.InteractionCreat
 	}
 }
 
-func confirmHandle(s *discordgo.Session) bool {
+func ConfirmHandle(s *discordgo.Session) bool {
 	result := make(chan bool)
 	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if i.Type != discordgo.InteractionMessageComponent {
@@ -99,15 +83,15 @@ func confirmHandle(s *discordgo.Session) bool {
 	return <-result
 }
 
-func sendConfirmation(s *discordgo.Session, i *discordgo.InteractionCreate, embed *discordgo.MessageEmbed) bool {
-	confirm := createButton("Confirm", discordgo.SuccessButton, "✅", "confirm")
-	deny := createButton("Deny", discordgo.DangerButton, "❌", "deny")
+func SendConfirmation(s *discordgo.Session, i *discordgo.InteractionCreate, embed *discordgo.MessageEmbed) bool {
+	confirm := CreateButton("Confirm", discordgo.SuccessButton, "✅", "confirm")
+	deny := CreateButton("Deny", discordgo.DangerButton, "❌", "deny")
 	components := discordgo.ActionsRow{Components: []discordgo.MessageComponent{*confirm, *deny}}
-	sendInteractionWithComponent(s, i, embed, []discordgo.MessageComponent{components})
-	return confirmHandle(s)
+	SendInteractionWithComponent(s, i, embed, []discordgo.MessageComponent{components})
+	return ConfirmHandle(s)
 }
 
-func sendInteractionWithComponent(s *discordgo.Session, i *discordgo.InteractionCreate, embed *discordgo.MessageEmbed, components []discordgo.MessageComponent) {
+func SendInteractionWithComponent(s *discordgo.Session, i *discordgo.InteractionCreate, embed *discordgo.MessageEmbed, components []discordgo.MessageComponent) {
 	response := &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -122,7 +106,7 @@ func sendInteractionWithComponent(s *discordgo.Session, i *discordgo.Interaction
 	}
 }
 
-func sendFollowupComponent(s *discordgo.Session, i *discordgo.InteractionCreate, embed *discordgo.MessageEmbed, components []discordgo.MessageComponent) {
+func SendFollowupComponent(s *discordgo.Session, i *discordgo.InteractionCreate, embed *discordgo.MessageEmbed, components []discordgo.MessageComponent) {
 	_, err := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
 		Embeds:     []*discordgo.MessageEmbed{embed},
 		Flags:      discordgo.MessageFlagsEphemeral,
@@ -133,7 +117,7 @@ func sendFollowupComponent(s *discordgo.Session, i *discordgo.InteractionCreate,
 	}
 }
 
-func sendFollowup(s *discordgo.Session, i *discordgo.InteractionCreate, embed *discordgo.MessageEmbed) {
+func SendFollowup(s *discordgo.Session, i *discordgo.InteractionCreate, embed *discordgo.MessageEmbed) {
 	_, err := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
 		Embeds: []*discordgo.MessageEmbed{embed},
 		Flags:  discordgo.MessageFlagsEphemeral,
@@ -144,7 +128,7 @@ func sendFollowup(s *discordgo.Session, i *discordgo.InteractionCreate, embed *d
 
 }
 
-func createButton(label string, style discordgo.ButtonStyle, emoji string, customId string) *discordgo.Button {
+func CreateButton(label string, style discordgo.ButtonStyle, emoji string, customId string) *discordgo.Button {
 	return &discordgo.Button{
 		Label:    label,
 		Style:    style,

@@ -12,14 +12,7 @@ type Commands struct {
 	Handler     func(s *discordgo.Session, i *discordgo.InteractionCreate)
 }
 
-var CmdMap = map[string]Commands{
-	"setmiles":    SetMiles,
-	"getmiles":    GetMiles,
-	"addmiles":    AddMiles,
-	"resetmiles":  ResetMiles,
-	"removemiles": RemoveMiles,
-	"adduser":     AddUser,
-}
+var CmdMap = map[string]Commands{}
 
 func Register(s *discordgo.Session, guildID string) {
 	// Fetch existing commands

@@ -5,7 +5,7 @@ import "time"
 type Player struct {
 	DiscordID         string    `bson:"discordId"`
 	TeamPlaying       string    `bson:"teamPlaying"`
-	Stars             int       `bson:"stars"`
+	Stars             float32   `bson:"stars"`
 	Position          string    `bson:"position"`
 	SeasonsPlayed     int       `bson:"seasonsPlayed"`
 	Contracted        bool      `bson:"contracted"`
@@ -22,8 +22,8 @@ type Team struct {
 	Players        []string `bson:"players"`
 	PlayerMax      int      `bson:"playerMax"`
 	RoleID         string   `bson:"roleId"`
-	Wins           string   `bson:"wins"`
-	Losses         string   `bson:"losses"`
-	StarsRecruited int      `bson:"starsRecruited"`
-	MaxStars       int      `bson:"maxStars"`
+	Wins           uint     `bson:"wins"`
+	Losses         uint     `bson:"losses"`
+	StarsRecruited float32  `bson:"starsRecruited"`
+	MaxStars       float32  `bson:"maxStars"`
 }
