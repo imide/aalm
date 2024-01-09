@@ -3,6 +3,7 @@ package config
 import (
 	"gopkg.in/yaml.v3"
 	"io"
+	"log"
 	"os"
 )
 
@@ -13,6 +14,8 @@ type Config struct {
 	Transactions string `yaml:"transactions_channel_id"`
 	Suspensions  string `yaml:"suspensions_channel_id"`
 }
+
+var Cfg *Config
 
 func NewConfig(filename string) (*Config, error) {
 	file, err := os.Open(filename)
@@ -38,4 +41,14 @@ func NewConfig(filename string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+func Init() error {
+	var err error
+	Cfg, err = NewConfig("config.yaml")
+	if err != nil {
+		log.Panicln("Error loading config,", err)
+		return err
+	}
+	return nil
 }

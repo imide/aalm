@@ -3,6 +3,7 @@ package player
 import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
+	"github.com/imide/aalm/auditlog"
 	"github.com/imide/aalm/commands"
 	"github.com/imide/aalm/util/db"
 	"go.mongodb.org/mongo-driver/bson"
@@ -210,8 +211,8 @@ func recruitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 				// Update the player's data
 				playerUpdate := bson.M{
-					"teamPlaying": recruiterTeam.Name,
-					"contracted":  true,
+					"team_id":    recruiterTeam.ID,
+					"contracted": true,
 				}
 
 				err = db.UpdateMultiplePlayerInfo(recruitData.ID, playerUpdate)
@@ -228,6 +229,9 @@ func recruitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				if err != nil {
 					log.Println("Error sending message to DM channel,", err)
 				}
+
+				// Log the transaction
+				auditlog.LogTransaction(s, auditlog.Contract, recruitData, recruiterTeam)
 
 			case "decline":
 				// Handle the "Decline" button
@@ -304,5 +308,3 @@ func getRecruitData(s *discordgo.Session, i *discordgo.InteractionCreate) (db.Pl
 
 	return recruitData, true, nil
 }
-
-// stupid work around but i dont care

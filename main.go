@@ -10,15 +10,12 @@ import (
 	"os/signal"
 )
 
-var Cfg *config.Config
-
 // main initializes the Discord bot by loading environment variables,
 // starting the Discord session, and testing the database connection.
 func main() {
 
 	// Standard env loading
-	var err error
-	Cfg, err = config.NewConfig("config.yaml")
+	err := config.Init()
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
 		return

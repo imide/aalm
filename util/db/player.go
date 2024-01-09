@@ -18,9 +18,8 @@ const (
 )
 
 const (
-	Suspend PlayerInfoOperation = iota
-	Unsuspend
-	Contract
+	Contract PlayerInfoOperation = iota
+	SuspendOrUnsuspend
 	Drop
 	AddRing
 	RemoveRing
@@ -53,7 +52,7 @@ func UpdatePlayerStars(id string, stars int, op PlayerStarOperation) error {
 	return nil
 }
 
-func UpdatePlayerInfo(id string, info string, op PlayerInfoOperation) error {
+func UpdatePlayerInfo(id string, info interface{}, op PlayerInfoOperation) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -61,10 +60,12 @@ func UpdatePlayerInfo(id string, info string, op PlayerInfoOperation) error {
 
 	var update bson.M
 	switch op {
-	case Suspend:
-		update = bson.M{"$set": bson.M{"isSuspended": true, "suspensionExpires": info}}
-	case Unsuspend:
-		update = bson.M{"$set": bson.M{"isSuspended": false}}
+	case SuspendOrUnsuspend:
+		suspension, ok := info.(Suspension)
+		if !ok {
+			return errors.New("invalid suspension, must be of type Suspension")
+		}
+		update = bson.M{"$set": bson.M{"suspension": suspension}}
 	case Contract:
 		update = bson.M{"$set": bson.M{"contracted": true}}
 	case Drop:
