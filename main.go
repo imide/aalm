@@ -4,16 +4,33 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"github.com/imide/aalm/commands"
-	"github.com/joho/godotenv"
+	"github.com/imide/aalm/util/config"
 	"log"
 	"os"
 	"os/signal"
 )
 
-// Init initializes the Discord bot by loading environment variables,
+var Cfg *config.Config
+
+// main initializes the Discord bot by loading environment variables,
 // starting the Discord session, and testing the database connection.
 func main() {
-	LoadEnv()
+
+	// Standard env loading
+	var err error
+	Cfg, err = config.NewConfig("config.yaml")
+	if err != nil {
+		log.Fatalf("Error loading config: %v", err)
+		return
+	}
+
+	// Force change timezone to EST so people dont get mad at me :(
+	err = os.Setenv("TZ", "America/New_York")
+	if err != nil {
+		return
+	}
+
+	// Start the Discord session
 	startDiscordSession()
 }
 
@@ -69,14 +86,4 @@ func waitForInterrupt() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 	<-stop
-}
-
-// loadEnv loads environment variables from a .env file.
-func LoadEnv() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Panicln("Error loading .env file,", err)
-		return
-	}
-	log.Println("successfully loaded env vars")
 }

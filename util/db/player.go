@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
 )
 
@@ -21,7 +22,8 @@ const (
 	Unsuspend
 	Contract
 	Drop
-	Position
+	AddRing
+	RemoveRing
 	ChangeTeam
 )
 
@@ -43,7 +45,7 @@ func UpdatePlayerStars(id string, stars int, op PlayerStarOperation) error {
 		return errors.New("invalid operation")
 	}
 
-	_, err := c.UpdateOne(ctx, bson.M{"discordId": id}, update)
+	_, err := c.UpdateOne(ctx, bson.M{"ID": id}, update)
 	if err != nil {
 		return err
 	}
@@ -67,41 +69,18 @@ func UpdatePlayerInfo(id string, info string, op PlayerInfoOperation) error {
 		update = bson.M{"$set": bson.M{"contracted": true}}
 	case Drop:
 		update = bson.M{"$set": bson.M{"contracted": false}}
-	case Position:
-		update = bson.M{"$set": bson.M{"position": info}}
 	case ChangeTeam:
 		update = bson.M{"$set": bson.M{"teamPlaying": info}}
+	case AddRing:
+		update = bson.M{"$push": bson.M{"rings": info}}
+	case RemoveRing:
+		update = bson.M{"$pull": bson.M{"rings": info}}
+
 	default:
 		return errors.New("invalid operation")
 	}
 
-	_, err := c.UpdateOne(ctx, bson.M{"discordId": id}, update)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func AddPlayer(discordId string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	c := client.Database("aafl").Collection("players") // replace with your actual database name
-
-	player := Player{
-		DiscordID:         discordId,
-		TeamPlaying:       "",
-		Stars:             0.5,
-		Position:          "",
-		SeasonsPlayed:     0,
-		Contracted:        false,
-		SeasonsContracted: 0,
-		IsSuspended:       false,
-		SuspensionExpires: time.Time{},
-	}
-
-	_, err := c.InsertOne(ctx, player)
+	_, err := c.UpdateOne(ctx, bson.M{"ID": id}, update)
 	if err != nil {
 		return err
 	}
@@ -116,7 +95,7 @@ func GetPlayerData(id string) (Player, error) {
 	c := client.Database("aafl").Collection("players") // replace with your actual database name
 
 	var player Player
-	err := c.FindOne(ctx, bson.M{"discordId": id}).Decode(&player)
+	err := c.FindOne(ctx, bson.M{"ID": id}).Decode(&player)
 	if err != nil {
 		return Player{}, err
 	}
@@ -132,7 +111,7 @@ func UpdateMultiplePlayerInfo(id string, info bson.M) error {
 
 	for field := range info {
 		switch field {
-		case "teamPlaying", "position", "contracted", "seasonsContracted", "isSuspended", "suspensionExpires", "stars", "seasonsPlayed":
+		case "teamPlaying", "rings", "contracted", "seasonsContracted", "isSuspended", "suspensionExpires", "stars":
 
 		default:
 			return errors.New("invalid field: " + field)
@@ -141,10 +120,25 @@ func UpdateMultiplePlayerInfo(id string, info bson.M) error {
 
 	update := bson.M{"$set": info}
 
-	_, err := c.UpdateOne(ctx, bson.M{"discordId": id}, update)
+	_, err := c.UpdateOne(ctx, bson.M{"ID": id}, update)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func GetSpecificPlayerData(id string, projection bson.M) (Player, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	c := client.Database("aafl").Collection("players") // replace with your actual database name
+
+	var player Player
+	err := c.FindOne(ctx, bson.M{"_id": id}, options.FindOne().SetProjection(projection)).Decode(&player)
+	if err != nil {
+		return Player{}, err
+	}
+
+	return player, nil
 }

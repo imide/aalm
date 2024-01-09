@@ -1,60 +1,308 @@
 package player
 
 import (
+	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"github.com/imide/aalm/commands"
 	"github.com/imide/aalm/util/db"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"log"
+	"time"
 )
+
+type RecruitmentOffer struct {
+	UserID   string
+	TimeSent time.Time
+}
 
 var recruit = commands.Commands{
 	Name:        "recruit",
-	Description: "Recruit a user to the group.",
-	Options:     nil,
-	Handler:     recruitHandler,
+	Description: "Recruit a player to your team.",
+	Options: []*discordgo.ApplicationCommandOption{
+		{
+			Type:        discordgo.ApplicationCommandOptionUser,
+			Name:        "player",
+			Description: "The player to recruit.",
+			Required:    true,
+		},
+	},
+	Handler: recruitHandler,
 }
+
+// Functions:
 
 func recruitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// Fetch the user's role and the player's data
-	recruiterData, err := db.GetPlayerData(i.Member.User.ID)
-	recruitId := i.ApplicationCommandData().Options[0].UserValue(s).ID
-	recruitUserData, err := db.GetPlayerData(recruitId)
+
+	// Variables and checking:
+
+	recruiterData, recruiterTeam, err := getRecruiterData(s, i)
+
 	if err != nil {
-		// Handle error
+		embed := commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to get your team data. Please try again later.", 0xffcc4d)
+		commands.SendInteractionResponse(s, i, embed)
 		return
 	}
 
-	validPermissions := []string{"owner", "coach"}
+	guildID := i.GuildID
 
-	switch {
-	case !contains(validPermissions, recruiterData.Position):
-		commands.SendInteractionResponse(s, i, invalidRecruiterPerm)
-		log.Println("interaction recruit denied, invalid recruiter permissions")
+	recruitData, isRecruitable, err := getRecruitData(s, i)
+	switch isRecruitable {
+	case false:
 		return
-	case recruitUserData.IsSuspended == true || recruiterData.IsSuspended == true:
-		commands.SendInteractionResponse(s, i, recruitSuspendedErr)
-		log.Println("interaction recruit denied, recruit/recruiter is suspended")
-		return
-	case recruitUserData.Contracted == true || recruitUserData.TeamPlaying != "":
-		commands.SendInteractionResponse(s, i, recruitAlreadyContractedErr)
-		log.Println("interaction recruit denied, recruit is already contracted")
-		return
+	}
+
+	switch err {
+	case nil:
+		break
 	default:
-		confirm := commands.CreateButton("Confirm", discordgo.SuccessButton, "✅", "confirm")
-		deny := commands.CreateButton("Deny", discordgo.DangerButton, "❌", "deny")
-		components := discordgo.ActionsRow{Components: []discordgo.MessageComponent{*confirm, *deny}}
-		commands.SendInteractionWithComponent(s, i, recruitOfferReceived, []discordgo.MessageComponent{components})
-
-		// If no response is received within 24 hours, automatically deny the recruitment
+		return
 	}
+
+	teamRole, err := s.State.Role(guildID, recruiterTeam.RoleID)
+	if err != nil {
+		embed := commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to get your team data. Please try again later.", 0xffcc4d)
+		commands.SendInteractionResponse(s, i, embed)
+		return
+	}
+
+	// Messages and components (well important ones):
+
+	var recruitDm = discordgo.MessageEmbed{
+		Title: "📨 | **Recruitment Offer**",
+		Author: &discordgo.MessageEmbedAuthor{
+			Name:    "AAFL Recruitment",
+			IconURL: "https://cdn.discordapp.com/attachments/1182340550725214208/1182344030391111710/aafl_logo.png",
+		},
+		Description: fmt.Sprintf(`The coach of the team **%s** has offered you a contract to play for their team within the AAFL. Would you like to accept? \n \n **Note:** You will be unable to play for another team until your contract expires. **This offer will expire in 24 hours.**`, recruiterTeam.Name),
+		Color:       teamRole.Color,
+		Thumbnail: &discordgo.MessageEmbedThumbnail{
+			URL: recruiterTeam.Logo,
+		},
+	}
+
+	var recruitAccept = discordgo.MessageEmbed{
+		Title: "✅ | **Recruitment Accepted**",
+		Author: &discordgo.MessageEmbedAuthor{
+			Name:    "AAFL Recruitment",
+			IconURL: "https://cdn.discordapp.com/attachments/1182340550725214208/1182344030391111710/aafl_logo.png",
+		},
+		Description: fmt.Sprintf(`Welcome to the **%s**. Your recruitment has been finalized. \n You may join your team's discord [here.](https://discord.gg/%s)\n **You will be unable to play for another team until your contract expires.**`, recruiterTeam.Name, recruiterTeam.DiscordInvite),
+		Color:       teamRole.Color,
+		Thumbnail: &discordgo.MessageEmbedThumbnail{
+			URL: recruiterTeam.Logo,
+		},
+	}
+
+	var recruitDeny = discordgo.MessageEmbed{
+		Title: "❌ | **Recruitment Denied**",
+		Author: &discordgo.MessageEmbedAuthor{
+			Name:    "AAFL Recruitment",
+			IconURL: "https://cdn.discordapp.com/attachments/1182340550725214208/1182344030391111710/aafl_logo.png",
+		},
+		Description: fmt.Sprintf(`You have denied the recruitment offer from the **%s**.`, recruiterTeam.Name),
+		Color:       teamRole.Color,
+	}
+
+	var recruitTimeout = discordgo.MessageEmbed{
+		Title: "⏰ | **Recruitment Expired**",
+		Author: &discordgo.MessageEmbedAuthor{
+			Name:    "AAFL Recruitment",
+			IconURL: "https://cdn.discordapp.com/attachments/1182340550725214208/1182344030391111710/aafl_logo.png",
+		},
+		Description: fmt.Sprintf(`The recruitment offer from the **%s** has expired.`, recruiterTeam.Name),
+		Color:       teamRole.Color,
+	}
+
+	var recruitmentSent = discordgo.MessageEmbed{
+		Title: "📨 | **Recruitment Sent**",
+		Author: &discordgo.MessageEmbedAuthor{
+			Name:    "AAFL Recruitment",
+			IconURL: "https://cdn.discordapp.com/attachments/1182340550725214208/1182344030391111710/aafl_logo.png",
+		},
+		Description: fmt.Sprintf(`Your recruitment offer has been sent to <@%s>.`, recruitData.ID),
+	}
+
+	var recruitmentDenied = discordgo.MessageEmbed{
+		Title: "❌ | **Recruitment Denied**",
+		Author: &discordgo.MessageEmbedAuthor{
+			Name:    "AAFL Recruitment",
+			IconURL: "https://cdn.discordapp.com/attachments/1182340550725214208/1182344030391111710/aafl_logo.png",
+		},
+		Description: fmt.Sprintf(`Your recruitment offer to <@%s> was denied or ignored by the user.`, recruitData.ID),
+	}
+
+	var recruitmentAccepted = discordgo.MessageEmbed{
+		Title: "✅ | **Recruitment Accepted**",
+		Author: &discordgo.MessageEmbedAuthor{
+			Name:    "AAFL Recruitment",
+			IconURL: "https://cdn.discordapp.com/attachments/1182340550725214208/1182344030391111710/aafl_logo.png",
+		},
+		Description: fmt.Sprintf(`Your recruitment offer to <@%s> was accepted. They have recieved their roles and their data has been updated as well`, recruitData.ID),
+	}
+
+	var acceptButton = commands.CreateButton("Accept", discordgo.SuccessButton, "✅", "accept")
+
+	var denyButton = commands.CreateButton("Deny", discordgo.DangerButton, "❌", "deny")
+
+	var confirmRow = discordgo.ActionsRow{Components: []discordgo.MessageComponent{*acceptButton, *denyButton}}
+
+	// Actual code:
+
+	var recruitmentOffer = RecruitmentOffer{
+		UserID:   recruitData.ID,
+		TimeSent: time.Now(),
+	}
+
+	commands.SendInteractionResponse(s, i, &recruitmentSent)
+
+	dmChannel, err := s.UserChannelCreate(recruitData.ID)
+	if err != nil {
+		embed := commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to send the recruitment offer. Please try again later.", 0xffcc4d)
+		commands.SendInteractionResponse(s, i, embed)
+		return
+	}
+
+	message := &discordgo.MessageSend{
+		Embed:      &recruitDm,
+		Components: []discordgo.MessageComponent{confirmRow},
+	}
+
+	_, err = s.ChannelMessageSendComplex(dmChannel.ID, message)
+	if err != nil {
+		embed := commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to send the recruitment offer. Please try again later.", 0xffcc4d)
+		commands.SendInteractionResponse(s, i, embed)
+		return
+	}
+
+	// Add a handler for InteractionCreate events
+	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		// Check if the interaction is a MessageComponent interaction
+		if i.Type == discordgo.InteractionMessageComponent {
+			// Check the CustomID of the button
+			switch i.MessageComponentData().CustomID {
+			case "accept":
+				// Handle the "Accept" button
+
+				if time.Now().Sub(recruitmentOffer.TimeSent).Hours() > 24 {
+					// The offer has expired
+					messageEdit := &discordgo.MessageEdit{
+						ID:      i.Message.ID,
+						Channel: i.ChannelID,
+						Embed:   &recruitTimeout,
+					}
+					_, err := s.ChannelMessageEditComplex(messageEdit)
+					if err != nil {
+						log.Println("Error editing message,", err)
+					}
+					return
+				}
+				// Edit the message to show the recruitAccept embed
+				messageEdit := &discordgo.MessageEdit{
+					ID:      i.Message.ID,
+					Channel: i.ChannelID,
+					Embed:   &recruitAccept,
+				}
+				_, err := s.ChannelMessageEditComplex(messageEdit)
+				if err != nil {
+					log.Println("Error editing message,", err)
+				}
+
+				// Update the player's data
+				playerUpdate := bson.M{
+					"teamPlaying": recruiterTeam.Name,
+					"contracted":  true,
+				}
+
+				err = db.UpdateMultiplePlayerInfo(recruitData.ID, playerUpdate)
+
+				// Create a DM channel with the recruiter
+				dmChannel, err := s.UserChannelCreate(recruiterData.ID)
+				if err != nil {
+					log.Println("Error creating DM channel,", err)
+					return
+				}
+
+				// Send a message to the recruiter in their DMs
+				_, err = s.ChannelMessageSendEmbed(dmChannel.ID, &recruitmentAccepted)
+				if err != nil {
+					log.Println("Error sending message to DM channel,", err)
+				}
+
+			case "decline":
+				// Handle the "Decline" button
+				messageEdit := &discordgo.MessageEdit{
+					ID:      i.Message.ID,
+					Channel: i.ChannelID,
+					Embed:   &recruitDeny,
+				}
+				_, err := s.ChannelMessageEditComplex(messageEdit)
+				if err != nil {
+					log.Println("Error editing message,", err)
+				}
+
+				// Create a DM channel with the recruiter
+				dmChannel, err := s.UserChannelCreate(recruiterData.ID)
+				if err != nil {
+					log.Println("Error creating DM channel,", err)
+					return
+				}
+
+				// Send a message to the recruiter in their DMs
+				_, err = s.ChannelMessageSendEmbed(dmChannel.ID, &recruitmentDenied)
+				if err != nil {
+					log.Println("Error sending message to DM channel,", err)
+				}
+			}
+		}
+	})
+
 }
 
-func contains(s []string, str string) bool {
-	for _, v := range s {
-		if v == str {
-			return true
+func getRecruiterData(s *discordgo.Session, i *discordgo.InteractionCreate) (db.Player, db.Team, error) {
+	recruiterData, err := db.GetPlayerData(i.Member.User.ID)
+	if err != nil {
+		return db.Player{}, db.Team{}, err
+	}
+
+	recruiterTeam, _ := db.GetTeamData(recruiterData.TeamPlaying)
+
+	if !db.HasManagePermission(i.Member.User.ID, recruiterTeam) {
+		embed := commands.CreateEmbed("⚠️ | **Warning**", "You do not have permission to manage this team. Either run setteam or try again later.", 0xffcc4d)
+		commands.SendInteractionResponse(s, i, embed)
+		return db.Player{}, db.Team{}, nil
+	}
+
+	return recruiterData, recruiterTeam, nil
+}
+
+func getRecruitData(s *discordgo.Session, i *discordgo.InteractionCreate) (db.Player, bool, error) {
+	recruitData, err := db.GetPlayerData(i.ApplicationCommandData().Options[0].UserValue(s).ID)
+	if err != nil {
+		switch err.Error() {
+		case mongo.ErrNoDocuments.Error():
+			embed := commands.CreateEmbed("⚠️ | **Warning**", "The user specified is not registered in the database. Please create the user with /adduser before continuing.", 0xffcc4d)
+			commands.SendInteractionResponse(s, i, embed)
+			return db.Player{}, false, nil
+
+		default:
+			return db.Player{}, false, err
 		}
 	}
 
-	return false
+	if recruitData.TeamPlaying != "" || recruitData.Contracted == true {
+		embed := commands.CreateEmbed("⚠️ | **Warning**", fmt.Sprintf(`The player you are trying to recruit is already playing for the **%s**. \n\n You may trade for the player or try again later.`, recruitData.TeamPlaying), 0xffcc4d)
+		commands.SendInteractionResponse(s, i, embed)
+		return db.Player{}, false, nil
+	}
+
+	if recruitData.IsSuspended {
+		embed := commands.CreateEmbed("⚠️ | **Warning**", "This player is currently suspended. Please try again later.", 0xffcc4d)
+		commands.SendInteractionResponse(s, i, embed)
+		return db.Player{}, false, nil
+	}
+
+	return recruitData, true, nil
 }
+
+// stupid work around but i dont care
