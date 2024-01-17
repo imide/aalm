@@ -300,7 +300,7 @@ func getRecruitData(s *discordgo.Session, i *discordgo.InteractionCreate) (db.Pl
 		return db.Player{}, false, nil
 	}
 
-	if recruitData.IsSuspended {
+	if recruitData.Suspension != nil && recruitData.Suspension.Active == true {
 		embed := commands.CreateEmbed("⚠️ | **Warning**", "This player is currently suspended. Please try again later.", 0xffcc4d)
 		commands.SendInteractionResponse(s, i, embed)
 		return db.Player{}, false, nil

@@ -10,6 +10,8 @@ import (
 	"os/signal"
 )
 
+var cfg = config.Cfg
+
 // main initializes the Discord bot by loading environment variables,
 // starting the Discord session, and testing the database connection.
 func main() {
@@ -33,7 +35,7 @@ func main() {
 
 // startDiscordSession creates and manages a Discord session.
 func startDiscordSession() {
-	token := fmt.Sprintf("Bot %s", os.Getenv("BOT_TOKEN"))
+	token := fmt.Sprintf("Bot %s", cfg.BotToken)
 	session, err := discordgo.New(token)
 	if err != nil {
 		log.Fatalf("Creating session error: %v", err)
