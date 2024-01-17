@@ -2,10 +2,8 @@ package db
 
 import (
 	"context"
-	"errors"
 	"github.com/bwmarrin/discordgo"
 	"go.mongodb.org/mongo-driver/bson"
-	"log"
 	"sync"
 	"time"
 )
@@ -121,32 +119,4 @@ func HasManagePermission(userID string, team Team) bool {
 
 	// If the user is neither the owner nor a coach, they do not have permission
 	return false
-}
-
-func UpdateMultipleTeamInfo(id string, info bson.M) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	c := client.Database("aafl").Collection("teams") // replace with your actual database name
-
-	for field := range info {
-		switch field {
-		case "name", "logo", "teamOwner", "coach", "players", "roleId", "playerMax", "wins", "losses", "starsRecruited", "maxStars":
-		default:
-			return errors.New("invalid field: " + field)
-		}
-	}
-
-	update := bson.M{"$set": info}
-
-	_, err := c.UpdateOne(ctx, bson.M{"RoleID": id}, update)
-	if err != nil {
-		return err
-	}
-
-	err = UpdateTeamOptions()
-	if err != nil {
-		log.Println(err)
-	}
-	return nil
 }

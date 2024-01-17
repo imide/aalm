@@ -45,7 +45,7 @@ func NewConfig(filename string) (*Config, error) {
 
 func Init() error {
 	var err error
-	Cfg, err = NewConfig("config.yaml")
+	Cfg, err = NewConfig("config.yml")
 	if err != nil {
 		log.Panicln("Error loading config,", err)
 		return err

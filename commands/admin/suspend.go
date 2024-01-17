@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"errors"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"github.com/imide/aalm/auditlog"
@@ -212,8 +213,16 @@ func suspendHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 				err = auditlog.LogSuspension(s, userData, auditlog.Suspend)
 				if err != nil {
-					log.Println("Error logging suspension,", err)
-					return
+					switch {
+					case errors.Is(err, auditlog.ErrNotImplemented):
+						log.Println("Audit log not implemented")
+						commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "The suspension audit log has not been implemented. Please manually log.", 0xffcc4d))
+						return
+					default:
+						log.Println("Error logging suspension,", err)
+						commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while logging the suspension.", 0xffcc4d))
+						return
+					}
 				}
 
 				return
