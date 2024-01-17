@@ -10,25 +10,6 @@ import (
 	"time"
 )
 
-type TeamInfoOperation int
-type TeamDataOperation int
-
-const (
-	ChangeLogo TeamInfoOperation = iota
-	Owner
-	Coaches
-	Players
-	Role
-)
-
-const (
-	MaxPlayers TeamDataOperation = iota
-	Wins
-	Losses
-	Stars
-	Starcap
-)
-
 var defaultLogo = "" //TODO: add this later
 var mu sync.RWMutex
 var TeamOptions []*discordgo.ApplicationCommandOptionChoice
@@ -82,71 +63,17 @@ func GetAllTeams() ([]Team, error) {
 	return teams, nil
 }
 
-func UpdateTeamInfo(id string, info string, op TeamInfoOperation) error {
+func SaveTeamData(teamData *Team) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	c := client.Database("aafl").Collection("teams") // replace with your actual database name
 
-	var update bson.M
-	switch op {
-	case ChangeLogo:
-		update = bson.M{"$set": bson.M{"logo": info}}
-	case Owner:
-		update = bson.M{"$set": bson.M{"teamOwner": info}}
-	case Coaches:
-		update = bson.M{"$set": bson.M{"coach": info}}
-	case Players:
-		update = bson.M{"$set": bson.M{"players": info}}
-	case Role:
-		update = bson.M{"$set": bson.M{"roleId": info}}
-	default:
-		return errors.New("invalid operation")
-	}
-
-	_, err := c.UpdateOne(ctx, bson.M{"RoleID": id}, update)
+	_, err := c.InsertOne(ctx, teamData)
 	if err != nil {
 		return err
 	}
 
-	err = UpdateTeamOptions()
-	if err != nil {
-		log.Println(err)
-	}
-	return nil
-}
-
-func UpdateTeamData(id string, data int, op TeamDataOperation) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	c := client.Database("aafl").Collection("teams") // replace with your actual database name
-
-	var update bson.M
-	switch op {
-	case MaxPlayers:
-		update = bson.M{"$set": bson.M{"playerMax": data}}
-	case Wins:
-		update = bson.M{"$set": bson.M{"wins": data}}
-	case Losses:
-		update = bson.M{"$set": bson.M{"losses": data}}
-	case Stars:
-		update = bson.M{"$set": bson.M{"starsRecruited": data}}
-	case Starcap:
-		update = bson.M{"$set": bson.M{"maxStars": data}}
-	default:
-		return errors.New("invalid operation")
-	}
-
-	_, err := c.UpdateOne(ctx, bson.M{"RoleID": id}, update)
-	if err != nil {
-		return err
-	}
-
-	err = UpdateTeamOptions()
-	if err != nil {
-		log.Println(err)
-	}
 	return nil
 }
 

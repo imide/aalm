@@ -172,7 +172,8 @@ func suspendHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				}
 
 				// Update the player's document
-				err = db.UpdatePlayerInfo(i.ApplicationCommandData().Options[0].UserValue(s).ID, suspension, db.SuspendOrUnsuspend)
+				userData.Suspension = &suspension
+				err = db.SavePlayerData(&userData)
 				if err != nil {
 					commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while updating the player's document.", 0xffcc4d))
 					return

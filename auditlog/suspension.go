@@ -4,6 +4,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/imide/aalm/util/config"
 	"github.com/imide/aalm/util/db"
+	"time"
 )
 
 type SuspensionAction int
@@ -21,6 +22,10 @@ func LogSuspension(s *discordgo.Session, player db.Player, action SuspensionActi
 	switch action {
 
 	case Suspend:
-		var embed =
+		var embed = &discordgo.MessageEmbed{
+			Title:     "✅ | **Suspension Confirmed**",
+			Timestamp: time.Now().String(),
+			Color:     0x800000,
+		}
 	}
 }
