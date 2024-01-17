@@ -1,12 +1,12 @@
 package player
 
 import (
+	"errors"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"github.com/imide/aalm/auditlog"
 	"github.com/imide/aalm/commands"
 	"github.com/imide/aalm/util/db"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"time"
@@ -37,7 +37,7 @@ func recruitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	// Variables and checking:
 
-	recruiterData, recruiterTeam, err := getRecruiterData(s, i)
+	recruiterData, recruiterTeam, err := GetRecruiterData(s, i)
 
 	if err != nil {
 		embed := commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to get your team data. Please try again later.", 0xffcc4d)
@@ -210,12 +210,10 @@ func recruitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				}
 
 				// Update the player's data
-				playerUpdate := bson.M{
-					"team_id":    recruiterTeam.ID,
-					"contracted": true,
-				}
 
-				err = db.UpdateMultiplePlayerInfo(recruitData.ID, playerUpdate)
+				recruitData.TeamPlaying = recruiterTeam.ID
+				recruitData.Contracted = true
+				err = db.SavePlayerData(&recruitData)
 
 				// Create a DM channel with the recruiter
 				dmChannel, err := s.UserChannelCreate(recruiterData.ID)
@@ -263,7 +261,7 @@ func recruitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 }
 
-func getRecruiterData(s *discordgo.Session, i *discordgo.InteractionCreate) (db.Player, db.Team, error) {
+func GetRecruiterData(s *discordgo.Session, i *discordgo.InteractionCreate) (db.Player, db.Team, error) {
 	recruiterData, err := db.GetPlayerData(i.Member.User.ID)
 	if err != nil {
 		return db.Player{}, db.Team{}, err
@@ -274,7 +272,8 @@ func getRecruiterData(s *discordgo.Session, i *discordgo.InteractionCreate) (db.
 	if !db.HasManagePermission(i.Member.User.ID, recruiterTeam) {
 		embed := commands.CreateEmbed("⚠️ | **Warning**", "You do not have permission to manage this team. Either run setteam or try again later.", 0xffcc4d)
 		commands.SendInteractionResponse(s, i, embed)
-		return db.Player{}, db.Team{}, nil
+		noperm := errors.New("no permission")
+		return db.Player{}, db.Team{}, noperm
 	}
 
 	return recruiterData, recruiterTeam, nil

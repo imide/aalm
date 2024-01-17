@@ -61,6 +61,20 @@ func GetAllTeams() ([]Team, error) {
 	return teams, nil
 }
 
+func SaveTeamData(teamData *Team) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	c := client.Database("aafl").Collection("teams") // replace with your actual database name
+
+	_, err := c.InsertOne(ctx, teamData)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func GetTeamData(id string) (Team, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

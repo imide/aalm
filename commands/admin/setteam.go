@@ -131,8 +131,19 @@ func setTeamHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if i.Type == discordgo.InteractionMessageComponent {
 			switch i.ApplicationCommandData().ID {
 			case "accept":
-				//TODO: audit log
-				db.UpdatePlayerInfo(i.ApplicationCommandData().Options[0].UserValue(s).ID, teamData.Name, db.ChangeTeam)
+				// Edit the user data
+				userData.TeamPlaying = teamData.ID
+				userData.Contracted = true
+
+				// Save the user data
+
+				err := db.SavePlayerData(&userData)
+				if err != nil {
+					log.Println("Error saving user data,", err)
+					commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while saving the user data.", 0xffcc4d))
+					return
+				}
+
 				dmChannel, err := s.UserChannelCreate(i.ApplicationCommandData().Options[0].UserValue(s).ID)
 				if err != nil {
 					log.Println("Error creating DM channel,", err)
