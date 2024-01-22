@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"github.com/imide/aalm/auditlog"
-	"github.com/imide/aalm/commands"
+	"github.com/imide/aalm/commands/cmdutil"
 	"github.com/imide/aalm/util/db"
 	"go.mongodb.org/mongo-driver/mongo"
 	"log"
@@ -17,7 +17,7 @@ type RecruitmentOffer struct {
 	TimeSent time.Time
 }
 
-var recruit = commands.Commands{
+var Recruit = cmdutil.Commands{
 	Name:        "recruit",
 	Description: "Recruit a player to your team.",
 	Options: []*discordgo.ApplicationCommandOption{
@@ -40,8 +40,8 @@ func recruitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	recruiterData, recruiterTeam, err := GetRecruiterData(s, i)
 
 	if err != nil {
-		embed := commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to get your team data. Please try again later.", 0xffcc4d)
-		commands.SendInteractionResponse(s, i, embed)
+		embed := cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to get your team data. Please try again later.", 0xffcc4d)
+		cmdutil.SendInteractionResponse(s, i, embed)
 		return
 	}
 
@@ -62,8 +62,8 @@ func recruitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	teamRole, err := s.State.Role(guildID, recruiterTeam.RoleID)
 	if err != nil {
-		embed := commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to get your team data. Please try again later.", 0xffcc4d)
-		commands.SendInteractionResponse(s, i, embed)
+		embed := cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to get your team data. Please try again later.", 0xffcc4d)
+		cmdutil.SendInteractionResponse(s, i, embed)
 		return
 	}
 
@@ -142,9 +142,9 @@ func recruitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		Description: fmt.Sprintf(`Your recruitment offer to <@%s> was accepted. They have recieved their roles and their data has been updated as well`, recruitData.ID),
 	}
 
-	var acceptButton = commands.CreateButton("Accept", discordgo.SuccessButton, "✅", "accept")
+	var acceptButton = cmdutil.CreateButton("Accept", discordgo.SuccessButton, "✅", "accept")
 
-	var denyButton = commands.CreateButton("Deny", discordgo.DangerButton, "❌", "deny")
+	var denyButton = cmdutil.CreateButton("Deny", discordgo.DangerButton, "❌", "deny")
 
 	var confirmRow = discordgo.ActionsRow{Components: []discordgo.MessageComponent{*acceptButton, *denyButton}}
 
@@ -155,12 +155,12 @@ func recruitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		TimeSent: time.Now(),
 	}
 
-	commands.SendInteractionResponse(s, i, &recruitmentSent)
+	cmdutil.SendInteractionResponse(s, i, &recruitmentSent)
 
 	dmChannel, err := s.UserChannelCreate(recruitData.ID)
 	if err != nil {
-		embed := commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to send the recruitment offer. Please try again later.", 0xffcc4d)
-		commands.SendInteractionResponse(s, i, embed)
+		embed := cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to send the recruitment offer. Please try again later.", 0xffcc4d)
+		cmdutil.SendInteractionResponse(s, i, embed)
 		return
 	}
 
@@ -171,8 +171,8 @@ func recruitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	_, err = s.ChannelMessageSendComplex(dmChannel.ID, message)
 	if err != nil {
-		embed := commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to send the recruitment offer. Please try again later.", 0xffcc4d)
-		commands.SendInteractionResponse(s, i, embed)
+		embed := cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to send the recruitment offer. Please try again later.", 0xffcc4d)
+		cmdutil.SendInteractionResponse(s, i, embed)
 		return
 	}
 
@@ -270,8 +270,8 @@ func GetRecruiterData(s *discordgo.Session, i *discordgo.InteractionCreate) (db.
 	recruiterTeam, _ := db.GetTeamData(recruiterData.TeamPlaying)
 
 	if !db.HasManagePermission(i.Member.User.ID, recruiterTeam) {
-		embed := commands.CreateEmbed("⚠️ | **Warning**", "You do not have permission to manage this team. Either run setteam or try again later.", 0xffcc4d)
-		commands.SendInteractionResponse(s, i, embed)
+		embed := cmdutil.CreateEmbed("⚠️ | **Warning**", "You do not have permission to manage this team. Either run setteam or try again later.", 0xffcc4d)
+		cmdutil.SendInteractionResponse(s, i, embed)
 		noperm := errors.New("no permission")
 		return db.Player{}, db.Team{}, noperm
 	}
@@ -284,9 +284,16 @@ func getRecruitData(s *discordgo.Session, i *discordgo.InteractionCreate) (db.Pl
 	if err != nil {
 		switch err.Error() {
 		case mongo.ErrNoDocuments.Error():
-			embed := commands.CreateEmbed("⚠️ | **Warning**", "The user specified is not registered in the database. Please create the user with /adduser before continuing.", 0xffcc4d)
-			commands.SendInteractionResponse(s, i, embed)
-			return db.Player{}, false, nil
+			embed := cmdutil.CreateEmbed("⚠️ | **Warning**", "The user specified is not registered in the database. Creating a user for you...", 0xffcc4d)
+			cmdutil.SendInteractionResponse(s, i, embed)
+			player, err := cmdutil.UserDoesntExist(i.ApplicationCommandData().Options[0].UserValue(s).ID)
+			if err != nil {
+				cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An unknown error occurred.", 0xffcc4d))
+				log.Printf("an error occurred during getting data: %s", err)
+				return db.Player{}, false, err
+			}
+
+			return player, true, nil
 
 		default:
 			return db.Player{}, false, err
@@ -294,14 +301,14 @@ func getRecruitData(s *discordgo.Session, i *discordgo.InteractionCreate) (db.Pl
 	}
 
 	if recruitData.TeamPlaying != "" || recruitData.Contracted == true {
-		embed := commands.CreateEmbed("⚠️ | **Warning**", fmt.Sprintf(`The player you are trying to recruit is already playing for the **%s**. \n\n You may trade for the player or try again later.`, recruitData.TeamPlaying), 0xffcc4d)
-		commands.SendInteractionResponse(s, i, embed)
+		embed := cmdutil.CreateEmbed("⚠️ | **Warning**", fmt.Sprintf(`The player you are trying to recruit is already playing for the **%s**. \n\n You may trade for the player or try again later.`, recruitData.TeamPlaying), 0xffcc4d)
+		cmdutil.SendInteractionResponse(s, i, embed)
 		return db.Player{}, false, nil
 	}
 
 	if recruitData.Suspension != nil && recruitData.Suspension.Active == true {
-		embed := commands.CreateEmbed("⚠️ | **Warning**", "This player is currently suspended. Please try again later.", 0xffcc4d)
-		commands.SendInteractionResponse(s, i, embed)
+		embed := cmdutil.CreateEmbed("⚠️ | **Warning**", "This player is currently suspended. Please try again later.", 0xffcc4d)
+		cmdutil.SendInteractionResponse(s, i, embed)
 		return db.Player{}, false, nil
 	}
 

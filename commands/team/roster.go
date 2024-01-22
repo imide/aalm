@@ -3,13 +3,13 @@ package team
 import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"github.com/imide/aalm/commands"
+	"github.com/imide/aalm/commands/cmdutil"
 	"github.com/imide/aalm/util/db"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
 )
 
-var teamRoster = commands.Commands{
+var Roster = cmdutil.Commands{
 	Name:        "roster",
 	Description: "Views the roster of the team selected.",
 	Options: []*discordgo.ApplicationCommandOption{
@@ -29,13 +29,13 @@ func rosterHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	teamData, err := db.GetTeamData(i.ApplicationCommandData().Options[0].StringValue())
 	if err != nil {
 		log.Println("Error retrieving team data,", err)
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the team data.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the team data.", 0xffcc4d))
 		return
 	}
 	teamRole, err := s.State.Role(i.GuildID, teamData.RoleID)
 	if err != nil {
 		log.Println("Error retrieving team role,", err)
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the team role.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the team role.", 0xffcc4d))
 		return
 	}
 
@@ -55,7 +55,7 @@ func rosterHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		playerData, err := db.GetSpecificPlayerData(playerID, bson.M{"stars": 1})
 		if err != nil {
 			log.Println("Error retrieving player data,", err)
-			commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the player data.", 0xffcc4d))
+			cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the player data.", 0xffcc4d))
 			return
 		}
 		totalStars += playerData.Stars
@@ -82,7 +82,7 @@ func rosterHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	ownerData, err := db.GetSpecificPlayerData(teamData.Owner, bson.M{"stars": 1, "_id": 1})
 	if err != nil {
 		log.Println("Error retrieving player data,", err)
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the player data.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the player data.", 0xffcc4d))
 		return
 	}
 	embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
@@ -98,5 +98,5 @@ func rosterHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	})
 
 	// Send the embed as a response to the interaction
-	commands.SendInteractionResponse(s, i, embed)
+	cmdutil.SendInteractionResponse(s, i, embed)
 }

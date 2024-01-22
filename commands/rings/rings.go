@@ -3,14 +3,14 @@ package rings
 import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"github.com/imide/aalm/commands"
+	"github.com/imide/aalm/commands/cmdutil"
 	"github.com/imide/aalm/util/db"
 	"log"
 )
 
 // This command is used to check what rings are available to be awarded to players.
 
-var rings = commands.Commands{
+var Rings = cmdutil.Commands{
 	Name:        "rings",
 	Description: "View the rings available to be awarded to players.",
 	Handler:     ringsHandler,
@@ -20,7 +20,7 @@ func ringsHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	rings, err := db.GetRingsData()
 	if err != nil {
 		log.Println("Error retrieving rings data,", err)
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the rings data.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the rings data.", 0xffcc4d))
 		return
 	}
 
@@ -40,7 +40,7 @@ func ringsHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		players, err := db.GetPlayersWithRing(ring.ID)
 		if err != nil {
 			log.Println("Error retrieving players with ring,", err)
-			commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the players with ring.", 0xffcc4d))
+			cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the players with ring.", 0xffcc4d))
 			return
 		}
 
@@ -55,6 +55,6 @@ func ringsHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			Inline: true,
 		})
 
-		commands.SendInteractionResponse(s, i, embed)
+		cmdutil.SendInteractionResponse(s, i, embed)
 	}
 }

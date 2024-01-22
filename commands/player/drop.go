@@ -3,14 +3,14 @@ package player
 import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"github.com/imide/aalm/commands"
+	"github.com/imide/aalm/commands/cmdutil"
 	"github.com/imide/aalm/util/config"
 	"github.com/imide/aalm/util/db"
 	"log"
 	"time"
 )
 
-var drop = &commands.Commands{
+var Drop = cmdutil.Commands{
 	Name:        "drop",
 	Description: "Drops a player from your team.",
 	Options: []*discordgo.ApplicationCommandOption{
@@ -32,7 +32,7 @@ func dropHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	// reused messages
 
-	unknownErrEmbed := commands.CreateEmbed("⚠️ | **Warning**", "An unknown error occurred.", 0xffcc4d)
+	unknownErrEmbed := cmdutil.CreateEmbed("⚠️ | **Warning**", "An unknown error occurred.", 0xffcc4d)
 
 	// Get all data
 	// just gonna import from recruit.go fuck this
@@ -42,8 +42,8 @@ func dropHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		case false:
 			return
 		default:
-			embed := commands.CreateEmbed("⚠️ | **Warning**", "An unknown error occurred.", 0xffcc4d)
-			commands.SendInteractionResponse(s, i, embed)
+			embed := cmdutil.CreateEmbed("⚠️ | **Warning**", "An unknown error occurred.", 0xffcc4d)
+			cmdutil.SendInteractionResponse(s, i, embed)
 			log.Printf("an error occurred during getting data: %s", err)
 			return
 		}
@@ -67,20 +67,20 @@ func dropHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			err := db.SaveTeamData(&teamData)
 			if err != nil {
 				log.Printf("Error saving team data: %s", err)
-				commands.SendInteractionResponse(s, i, unknownErrEmbed)
+				cmdutil.SendInteractionResponse(s, i, unknownErrEmbed)
 				return
 			}
 
 			err = db.SavePlayerData(&playerData)
 			if err != nil {
 				log.Printf("Error saving player data: %s", err)
-				embed := commands.CreateEmbed("⚠️ | **Warning**", "An unknown error occurred.", 0xffcc4d)
-				commands.SendInteractionResponse(s, i, embed)
+				embed := cmdutil.CreateEmbed("⚠️ | **Warning**", "An unknown error occurred.", 0xffcc4d)
+				cmdutil.SendInteractionResponse(s, i, embed)
 				return
 			}
 
-			embed := commands.CreateEmbed("✅ | **Success**", "Player dropped successfully.", 0x00ff00)
-			commands.SendInteractionResponse(s, i, embed)
+			embed := cmdutil.CreateEmbed("✅ | **Success**", "Player dropped successfully.", 0x00ff00)
+			cmdutil.SendInteractionResponse(s, i, embed)
 
 			// Send DM to player
 			var teamRole, _ = s.State.Role(cfg.GuildID, teamData.RoleID)
@@ -98,14 +98,14 @@ func dropHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			_, err = s.UserChannelCreate(playerID)
 			if err != nil {
 				log.Printf("Error creating DM channel: %s", err)
-				commands.SendInteractionResponse(s, i, unknownErrEmbed)
+				cmdutil.SendInteractionResponse(s, i, unknownErrEmbed)
 				return
 			}
 
 			_, err = s.ChannelMessageSendEmbed(playerID, dmPlayerEmbed)
 			if err != nil {
 				log.Printf("Error sending DM to player: %s", err)
-				commands.SendInteractionResponse(s, i, unknownErrEmbed)
+				cmdutil.SendInteractionResponse(s, i, unknownErrEmbed)
 				return
 			}
 

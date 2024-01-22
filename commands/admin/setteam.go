@@ -3,12 +3,12 @@ package admin
 import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"github.com/imide/aalm/commands"
+	"github.com/imide/aalm/commands/cmdutil"
 	"github.com/imide/aalm/util/db"
 	"log"
 )
 
-var setTeam = commands.Commands{
+var SetTeam = cmdutil.Commands{
 	Name:        "setteam",
 	Description: "Set the team of a user",
 	Options: []*discordgo.ApplicationCommandOption{
@@ -37,13 +37,13 @@ func setTeamHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	teamData, err := db.GetTeamData(i.ApplicationCommandData().Options[1].StringValue())
 	if err != nil {
 		log.Println("Error retrieving team data,", err)
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the team data.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the team data.", 0xffcc4d))
 		return
 	}
 	teamRole, err := s.State.Role(i.GuildID, teamData.RoleID)
 	if err != nil {
 		log.Println("Error retrieving team role,", err)
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the team role.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the team role.", 0xffcc4d))
 		return
 	}
 
@@ -51,7 +51,7 @@ func setTeamHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	userData, err := db.GetPlayerData(i.ApplicationCommandData().Options[0].UserValue(s).ID)
 	if err != nil {
 		log.Println("Error retrieving user data,", err)
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the user data.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the user data.", 0xffcc4d))
 		return
 	}
 
@@ -88,9 +88,9 @@ func setTeamHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 	}
 
-	var acceptButton = commands.CreateButton("Accept", discordgo.SuccessButton, "✅", "accept")
+	var acceptButton = cmdutil.CreateButton("Accept", discordgo.SuccessButton, "✅", "accept")
 
-	var denyButton = commands.CreateButton("Deny", discordgo.DangerButton, "❌", "deny")
+	var denyButton = cmdutil.CreateButton("Deny", discordgo.DangerButton, "❌", "deny")
 
 	var confirmRow = discordgo.ActionsRow{Components: []discordgo.MessageComponent{*acceptButton, *denyButton}}
 
@@ -98,12 +98,12 @@ func setTeamHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	if userData.Contracted == false {
 		log.Println("Error retrieving user data,", err)
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "This user is not contracted. The user is most likely a free agent, which will not work with this command. Please try again later.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "This user is not contracted. The user is most likely a free agent, which will not work with this command. Please try again later.", 0xffcc4d))
 		return
 	}
 
 	if userData.TeamPlaying == i.ApplicationCommandData().Options[1].StringValue() {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "This user is already on this team.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "This user is already on this team.", 0xffcc4d))
 		return
 	}
 
@@ -140,7 +140,7 @@ func setTeamHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				err := db.SavePlayerData(&userData)
 				if err != nil {
 					log.Println("Error saving user data,", err)
-					commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while saving the user data.", 0xffcc4d))
+					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while saving the user data.", 0xffcc4d))
 					return
 				}
 
@@ -154,7 +154,7 @@ func setTeamHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 					log.Println("Error sending message,", err)
 					return
 				}
-				commands.SendInteractionResponse(s, i, commands.CreateEmbed("✅ | **Success**", "The user has been force traded.", 0x00ff00))
+				cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("✅ | **Success**", "The user has been force traded.", 0x00ff00))
 				return
 
 			}

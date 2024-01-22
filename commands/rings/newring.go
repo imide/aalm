@@ -3,12 +3,12 @@ package rings
 import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"github.com/imide/aalm/commands"
+	"github.com/imide/aalm/commands/cmdutil"
 	"github.com/imide/aalm/util/db"
 	"log"
 )
 
-var newRing = commands.Commands{
+var NewRing = cmdutil.Commands{
 	Name:        "newring",
 	Description: "Creates a new ring.",
 	Options: []*discordgo.ApplicationCommandOption{
@@ -22,6 +22,7 @@ var newRing = commands.Commands{
 			Type:        discordgo.ApplicationCommandOptionString,
 			Name:        "description",
 			Description: "Provide a short and brief description of the ring.",
+			Required:    true,
 		},
 		{
 			Type:        discordgo.ApplicationCommandOptionRole,
@@ -30,23 +31,11 @@ var newRing = commands.Commands{
 			Required:    false,
 		},
 	},
-	Handler: newRingHandler,
+	Handler:     newRingHandler,
+	Permissions: discordgo.PermissionAdministrator,
 }
 
 func newRingHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// Permission check
-	perms, err := s.State.UserChannelPermissions(i.Member.User.ID, i.ChannelID)
-	if err != nil {
-		log.Println("Error retrieving permissions,", err)
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving your permissions.", 0xffcc4d))
-		return
-	}
-
-	if perms&discordgo.PermissionAdministrator != discordgo.PermissionAdministrator {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "You do not have permission to use this command.", 0xffcc4d))
-		return
-	}
-
 	// Button stuff (due to how i want the embed to work, only the buttons will  be here. Some embed stuff will be here too):
 
 	var cancelEmbed = discordgo.MessageEmbed{
@@ -69,16 +58,22 @@ func newRingHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 	}
 
-	var acceptButton = commands.CreateButton("Accept", discordgo.SuccessButton, "✅", "accept")
+	var acceptButton = cmdutil.CreateButton("Accept", discordgo.SuccessButton, "✅", "accept")
 
-	var denyButton = commands.CreateButton("Deny", discordgo.DangerButton, "❌", "deny")
+	var denyButton = cmdutil.CreateButton("Deny", discordgo.DangerButton, "❌", "deny")
 
 	var confirmRow = discordgo.ActionsRow{Components: []discordgo.MessageComponent{*acceptButton, *denyButton}}
 
 	// Logic:
 
-	switch i.ApplicationCommandData().Options[2].StringValue() {
-	case "":
+	if len(i.ApplicationCommandData().Options) > 2 {
+		switch i.ApplicationCommandData().Options[2].StringValue() {
+		default:
+			// Warn not implemented
+			cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "This feature is not implemented yet.", 0xffcc4d))
+			//TODO: implement
+		}
+	} else {
 		// Embed but also warn that a role will be created
 		confirmEmbed := discordgo.MessageEmbed{
 			Title:       "️⚠️ | **Warning**",
@@ -100,9 +95,9 @@ func newRingHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			},
 		}
 
-		err = s.InteractionRespond(i.Interaction, &response)
+		err := s.InteractionRespond(i.Interaction, &response)
 		if err != nil {
-			commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to your interaction.", 0xffcc4d))
+			cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to your interaction.", 0xffcc4d))
 			log.Println("Error responding to interaction,", err)
 			return
 		}
@@ -119,7 +114,7 @@ func newRingHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 					}
 					role, err := s.GuildRoleCreate(i.GuildID, &roleParams)
 					if err != nil {
-						commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while creating the role.", 0xffcc4d))
+						cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while creating the role.", 0xffcc4d))
 						log.Println("Error creating role,", err)
 						return
 					}
@@ -134,7 +129,7 @@ func newRingHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 					// Create the ring
 					err = db.CreateRing(ringData)
 					if err != nil {
-						commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while creating the ring.", 0xffcc4d))
+						cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while creating the ring.", 0xffcc4d))
 						log.Println("Error creating ring,", err)
 						return
 					}
@@ -151,7 +146,7 @@ func newRingHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 					err = s.InteractionRespond(i.Interaction, &response)
 					if err != nil {
-						commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to your interaction.", 0xffcc4d))
+						cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to your interaction.", 0xffcc4d))
 						log.Println("Error responding to interaction,", err)
 						return
 					}
@@ -172,7 +167,7 @@ func newRingHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 					err = s.InteractionRespond(i.Interaction, &response)
 					if err != nil {
-						commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to your interaction.", 0xffcc4d))
+						cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to your interaction.", 0xffcc4d))
 						log.Println("Error responding to interaction,", err)
 						return
 					}

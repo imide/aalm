@@ -5,16 +5,16 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"github.com/imide/aalm/auditlog"
-	"github.com/imide/aalm/commands"
+	"github.com/imide/aalm/commands/cmdutil"
 	"github.com/imide/aalm/util/db"
 	"log"
 	"math"
 	"time"
 )
 
-var suspend = &commands.Commands{
+var Suspend = cmdutil.Commands{
 	Name:        "suspend",
-	Description: "Suspends a user for a given amount of time. Suspensions are stored in the player's document in the database indefinitely, unless manually removed/overridden in database.",
+	Description: "Suspends a user for a given amount of time.",
 	Options: []*discordgo.ApplicationCommandOption{
 		{
 			Type:        discordgo.ApplicationCommandOptionUser,
@@ -31,7 +31,7 @@ var suspend = &commands.Commands{
 		{
 			Type:        discordgo.ApplicationCommandOptionString,
 			Name:        "duration",
-			Description: "The duration of the suspension WILL DEFAULT TO FOREVER IF NOT SPECIFIED. Example: 4h30m is for 4 hours 30 minutes. 7d is a week.",
+			Description: "Example: 4h30m is for 4 hours 30 minutes. 7d is a week.",
 			Required:    false,
 		},
 	},
@@ -43,12 +43,13 @@ func suspendHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Permission check
 	perms, err := s.State.UserChannelPermissions(i.Member.User.ID, i.ChannelID)
 	if err != nil {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving your permissions.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving your permissions.", 0xffcc4d))
+		log.Println("Error retrieving permissions,", err)
 		return
 	}
 
 	if perms&discordgo.PermissionAdministrator != discordgo.PermissionAdministrator {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "You do not have permission to use this command.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "You do not have permission to use this command.", 0xffcc4d))
 		return
 	}
 
@@ -109,22 +110,22 @@ func suspendHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 	}
 
-	var acceptButton = commands.CreateButton("Accept", discordgo.SuccessButton, "✅", "accept")
-	var cancelButton = commands.CreateButton("Cancel", discordgo.DangerButton, "❌", "cancel")
+	var acceptButton = cmdutil.CreateButton("Accept", discordgo.SuccessButton, "✅", "accept")
+	var cancelButton = cmdutil.CreateButton("Cancel", discordgo.DangerButton, "❌", "cancel")
 	var confirmRow = discordgo.ActionsRow{Components: []discordgo.MessageComponent{*acceptButton, *cancelButton}}
 
 	// Logic:
 	// Retrieve the user data
 	userData, err := db.GetPlayerData(i.ApplicationCommandData().Options[0].UserValue(s).ID)
 	if err != nil {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the user data.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the user data.", 0xffcc4d))
 		return
 	}
 
 	// Check if user is already suspended
 
 	if userData.Suspension != nil && userData.Suspension.Active == true {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "This user is already suspended.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "This user is already suspended.", 0xffcc4d))
 		return
 	}
 
@@ -136,7 +137,7 @@ func suspendHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	} else {
 		duration, err = time.ParseDuration(i.ApplicationCommandData().Options[2].StringValue())
 		if err != nil {
-			commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while parsing the duration.", 0xffcc4d))
+			cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while parsing the duration.", 0xffcc4d))
 			return
 		}
 		confirmation.Description = fmt.Sprintf("Are you sure you want to suspend <@%s> for **%s**?", i.ApplicationCommandData().Options[0].UserValue(s).ID, duration.String())
@@ -154,7 +155,7 @@ func suspendHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	err = s.InteractionRespond(i.Interaction, &response)
 	if err != nil {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to your interaction.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to your interaction.", 0xffcc4d))
 		log.Println("Error responding to interaction,", err)
 		return
 	}
@@ -176,7 +177,7 @@ func suspendHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				userData.Suspension = &suspension
 				err = db.SavePlayerData(&userData)
 				if err != nil {
-					commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while updating the player's document.", 0xffcc4d))
+					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while updating the player's document.", 0xffcc4d))
 					return
 				}
 
@@ -191,7 +192,7 @@ func suspendHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 				err = s.InteractionRespond(i.Interaction, &response)
 				if err != nil {
-					commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to your interaction.", 0xffcc4d))
+					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to your interaction.", 0xffcc4d))
 					log.Println("Error responding to interaction,", err)
 					return
 				}
@@ -216,11 +217,11 @@ func suspendHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 					switch {
 					case errors.Is(err, auditlog.ErrNotImplemented):
 						log.Println("Audit log not implemented")
-						commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "The suspension audit log has not been implemented. Please manually log.", 0xffcc4d))
+						cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "The suspension audit log has not been implemented. Please manually log.", 0xffcc4d))
 						return
 					default:
 						log.Println("Error logging suspension,", err)
-						commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while logging the suspension.", 0xffcc4d))
+						cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while logging the suspension.", 0xffcc4d))
 						return
 					}
 				}
@@ -238,7 +239,7 @@ func suspendHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 				err = s.InteractionRespond(i.Interaction, &response)
 				if err != nil {
-					commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to your interaction.", 0xffcc4d))
+					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to your interaction.", 0xffcc4d))
 					log.Println("Error responding to interaction,", err)
 					return
 				}

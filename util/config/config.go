@@ -1,10 +1,12 @@
 package config
 
 import (
+	"fmt"
 	"gopkg.in/yaml.v3"
 	"io"
 	"log"
 	"os"
+	"sync"
 )
 
 type Config struct {
@@ -15,7 +17,10 @@ type Config struct {
 	Suspensions  string `yaml:"suspensions_channel_id"`
 }
 
-var Cfg *Config
+var (
+	Cfg  *Config
+	once sync.Once
+)
 
 func NewConfig(filename string) (*Config, error) {
 	file, err := os.Open(filename)
@@ -45,10 +50,12 @@ func NewConfig(filename string) (*Config, error) {
 
 func Init() error {
 	var err error
-	Cfg, err = NewConfig("config.yml")
-	if err != nil {
-		log.Panicln("Error loading config,", err)
-		return err
-	}
+	once.Do(func() {
+		Cfg, err = NewConfig("/Users/zach/GolandProjects/aalm/config.yml")
+		if err != nil {
+			log.Panicln("Error loading config,", err)
+		}
+		fmt.Println(Cfg)
+	})
 	return nil
 }

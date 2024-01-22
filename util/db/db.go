@@ -2,20 +2,21 @@ package db
 
 import (
 	"context"
+	"github.com/imide/aalm/util/config"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
-	"os"
 	"time"
 )
 
 var client *mongo.Client
 
-var uri = os.Getenv("MONGODB_URI")
-
-func init() {
+func Init() {
 	var err error
-	clientOptions := options.Client().ApplyURI(uri)
+
+	cfg := config.Cfg
+
+	clientOptions := options.Client().ApplyURI(cfg.MongoURI)
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	client, err = mongo.Connect(ctx, clientOptions)
 	if err != nil {

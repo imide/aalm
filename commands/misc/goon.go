@@ -2,10 +2,10 @@ package misc
 
 import (
 	"github.com/bwmarrin/discordgo"
-	"github.com/imide/aalm/commands"
+	"github.com/imide/aalm/commands/cmdutil"
 )
 
-var goon = commands.Commands{
+var Goon = cmdutil.Commands{
 	Name:        "goon",
 	Description: "Goon.",
 	Options:     nil,
@@ -21,7 +21,7 @@ func goonHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 	err := s.InteractionRespond(i.Interaction, response)
 	if err != nil {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to the interaction.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to the interaction.", 0xffcc4d))
 		return
 	}
 }
