@@ -3,13 +3,12 @@ package admin
 import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"github.com/imide/aalm/commands"
+	"github.com/imide/aalm/commands/cmdutil"
 	"github.com/imide/aalm/util/db"
-	"go.mongodb.org/mongo-driver/bson"
 	"time"
 )
 
-var forceDrop = commands.Commands{
+var forceDrop = cmdutil.Commands{
 	Name:        "forcedrop",
 	Description: "Force drop a player from a team",
 	Options: []*discordgo.ApplicationCommandOption{
@@ -27,7 +26,8 @@ var forceDrop = commands.Commands{
 			Choices:     db.TeamOptions,
 		},
 	},
-	Handler: forceDropHandler,
+	Handler:     forceDropHandler,
+	Permissions: discordgo.PermissionAdministrator,
 }
 
 func forceDropHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -89,39 +89,27 @@ func forceDropHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 	}
 
-	var acceptButton = commands.CreateButton("Accept", discordgo.SuccessButton, "✅", "accept")
-	var cancelButton = commands.CreateButton("Cancel", discordgo.DangerButton, "❌", "cancel")
+	var acceptButton = cmdutil.CreateButton("Accept", discordgo.SuccessButton, "✅", "accept")
+	var cancelButton = cmdutil.CreateButton("Cancel", discordgo.DangerButton, "❌", "cancel")
 	var confirmRow = discordgo.ActionsRow{Components: []discordgo.MessageComponent{*acceptButton, *cancelButton}}
-
-	// Permission check
-	perms, err := s.State.UserChannelPermissions(i.Member.User.ID, i.ChannelID)
-	if err != nil {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving your permissions.", 0xffcc4d))
-		return
-	}
-
-	if perms&discordgo.PermissionAdministrator != discordgo.PermissionAdministrator {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "You do not have permission to use this command.", 0xffcc4d))
-		return
-	}
 
 	// Retrieve the team data
 	teamData, err := db.GetTeamData(i.ApplicationCommandData().Options[1].StringValue())
 	if err != nil {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the team data.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the team data.", 0xffcc4d))
 		return
 	}
 
 	// Retrieve the player data
 	playerData, err := db.GetSpecificPlayerData(i.ApplicationCommandData().Options[0].UserValue(s).ID, nil)
 	if err != nil {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the player data.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the player data.", 0xffcc4d))
 		return
 	}
 
 	// Check if the player is already on the team
 	if playerData.TeamPlaying != teamData.ID {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "This player is not on the team you specified.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "This player is not on the team you specified.", 0xffcc4d))
 		return
 	}
 
@@ -140,7 +128,7 @@ func forceDropHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Send the confirmation
 	err = s.InteractionRespond(i.Interaction, &response)
 	if err != nil {
-		commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while sending the confirmation message.", 0xffcc4d))
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while sending the confirmation message.", 0xffcc4d))
 		return
 	}
 
@@ -151,14 +139,10 @@ func forceDropHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			case "accept":
 				// Edit the player data
 
-				playerUpdate := bson.M{
-					"team_id":    "",
-					"contracted": false,
-				}
+				err = db.DropPlayer(&playerData, &teamData)
 
-				err = db.UpdateMultiplePlayerInfo(i.ApplicationCommandData().Options[0].UserValue(s).ID, playerUpdate)
 				if err != nil {
-					commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while updating the player data.", 0xffcc4d))
+					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while updating the player data.", 0xffcc4d))
 					return
 				}
 
@@ -175,14 +159,14 @@ func forceDropHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 				err = s.InteractionRespond(i.Interaction, &response)
 				if err != nil {
-					commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to the interaction.", 0xffcc4d))
+					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to the interaction.", 0xffcc4d))
 					return
 				}
 
 				// DM the user
 				dmChannel, err := s.UserChannelCreate(i.ApplicationCommandData().Options[0].UserValue(s).ID)
 				if err != nil {
-					commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while creating the DM channel.", 0xffcc4d))
+					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while creating the DM channel.", 0xffcc4d))
 					return
 				}
 
@@ -196,7 +180,7 @@ func forceDropHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 				_, err = s.ChannelMessageSendEmbed(dmChannel.ID, &forceDropDmEmbed)
 				if err != nil {
-					commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while sending the DM.", 0xffcc4d))
+					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while sending the DM.", 0xffcc4d))
 					return
 				}
 
@@ -212,7 +196,7 @@ func forceDropHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 				err = s.InteractionRespond(i.Interaction, &response)
 				if err != nil {
-					commands.SendInteractionResponse(s, i, commands.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to the interaction.", 0xffcc4d))
+					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while responding to the interaction.", 0xffcc4d))
 					return
 				}
 			}

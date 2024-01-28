@@ -26,12 +26,11 @@ var SetTeam = cmdutil.Commands{
 			Choices:     db.TeamOptions,
 		},
 	},
-	Handler: setTeamHandler,
+	Handler:     setTeamHandler,
+	Permissions: discordgo.PermissionAdministrator,
 }
 
 func setTeamHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
-
-	// Permission check
 
 	// Retrieve the team data
 	teamData, err := db.GetTeamData(i.ApplicationCommandData().Options[1].StringValue())
@@ -52,6 +51,13 @@ func setTeamHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if err != nil {
 		log.Println("Error retrieving user data,", err)
 		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the user data.", 0xffcc4d))
+		return
+	}
+
+	oldTeamData, err := db.GetTeamData(userData.TeamPlaying)
+	if err != nil {
+		log.Println("Error retrieving old team data,", err)
+		cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the old team data.", 0xffcc4d))
 		return
 	}
 
@@ -131,16 +137,31 @@ func setTeamHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if i.Type == discordgo.InteractionMessageComponent {
 			switch i.ApplicationCommandData().ID {
 			case "accept":
-				// Edit the user data
-				userData.TeamPlaying = teamData.ID
-				userData.Contracted = true
-
-				// Save the user data
-
-				err := db.SavePlayerData(&userData)
+				// Updates the user data
+				err = db.RecruitPlayer(&userData, &teamData)
 				if err != nil {
 					log.Println("Error saving user data,", err)
 					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while saving the user data.", 0xffcc4d))
+					return
+				}
+
+				index := -1
+				for i, playerInfo := range oldTeamData.Players {
+					if playerInfo.ID == userData.ID {
+						index = i
+						break
+					}
+				}
+
+				if index != -1 {
+					oldTeamData.Players = append(oldTeamData.Players[:index], oldTeamData.Players[index+1:]...)
+				}
+
+				// Updates the team data
+				err = db.SaveTeamData(&oldTeamData)
+				if err != nil {
+					log.Println("Error saving team data,", err)
+					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while saving the team data.", 0xffcc4d))
 					return
 				}
 
@@ -154,6 +175,21 @@ func setTeamHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 					log.Println("Error sending message,", err)
 					return
 				}
+
+				err = s.GuildMemberRoleRemove(i.GuildID, userData.ID, oldTeamData.RoleID)
+				if err != nil {
+					log.Println("Error removing role,", err)
+					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while removing the old team role.", 0xffcc4d))
+					return
+				}
+
+				err = s.GuildMemberRoleAdd(i.GuildID, userData.ID, teamData.RoleID)
+				if err != nil {
+					log.Println("Error adding role,", err)
+					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while adding the new team role.", 0xffcc4d))
+					return
+				}
+
 				cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("✅ | **Success**", "The user has been force traded.", 0x00ff00))
 				return
 

@@ -15,6 +15,7 @@ type Config struct {
 	GuildID      string `yaml:"guild_id"`
 	Transactions string `yaml:"transactions_channel_id"`
 	Suspensions  string `yaml:"suspensions_channel_id"`
+	FORoleID     string `yaml:"fo_role_id"`
 }
 
 var (

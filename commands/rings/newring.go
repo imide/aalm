@@ -71,7 +71,7 @@ func newRingHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		default:
 			// Warn not implemented
 			cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "This feature is not implemented yet.", 0xffcc4d))
-			//TODO: implement
+			//TODO: implement later
 		}
 	} else {
 		// Embed but also warn that a role will be created

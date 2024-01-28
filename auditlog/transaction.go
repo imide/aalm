@@ -5,7 +5,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/imide/aalm/util/config"
 	"github.com/imide/aalm/util/db"
-	"go.mongodb.org/mongo-driver/bson"
 	"log"
 	"time"
 )
@@ -34,12 +33,7 @@ func LogTransaction(s *discordgo.Session, action TransactionType, player db.Play
 	var teamPlayersStars float32
 	var teamPlayersNum = len(team.Players)
 
-	for _, playerID := range team.Players {
-		player, err := db.GetSpecificPlayerData(playerID, bson.M{"stars": 1})
-		if err != nil {
-			log.Println("error getting player stars")
-			return
-		}
+	for _, player := range team.Players {
 		teamPlayersStars += player.Stars
 	}
 

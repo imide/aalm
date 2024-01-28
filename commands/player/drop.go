@@ -55,26 +55,11 @@ func dropHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	for index, id := range teamData.Players {
-		if id == playerID {
-			// Remove the player from the list
-			teamData.Players = append(teamData.Players[:1], teamData.Players[index+1:]...)
-
-			// Update player data
-			playerData.TeamPlaying = ""
-
-			// Save
-			err := db.SaveTeamData(&teamData)
+	for _, playerInfo := range teamData.Players {
+		if playerInfo.ID == playerID {
+			err = db.DropPlayer(&playerData, &teamData)
 			if err != nil {
-				log.Printf("Error saving team data: %s", err)
-				cmdutil.SendInteractionResponse(s, i, unknownErrEmbed)
-				return
-			}
-
-			err = db.SavePlayerData(&playerData)
-			if err != nil {
-				log.Printf("Error saving player data: %s", err)
-				embed := cmdutil.CreateEmbed("⚠️ | **Warning**", "An unknown error occurred.", 0xffcc4d)
+				embed := cmdutil.CreateEmbed("⚠️ | **Warning**", "An unknown error occured while editing player/team data.", 0xffcc4d)
 				cmdutil.SendInteractionResponse(s, i, embed)
 				return
 			}
@@ -109,7 +94,6 @@ func dropHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				return
 			}
 
-			//TODO: audit
 		}
 	}
 

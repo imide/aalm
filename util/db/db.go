@@ -2,11 +2,12 @@ package db
 
 import (
 	"context"
+	"log"
+	"time"
+
 	"github.com/imide/aalm/util/config"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"log"
-	"time"
 )
 
 var client *mongo.Client

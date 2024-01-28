@@ -2,11 +2,12 @@ package team
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/imide/aalm/commands/cmdutil"
 	"github.com/imide/aalm/util/db"
 	"go.mongodb.org/mongo-driver/bson"
-	"log"
 )
 
 var Roster = cmdutil.Commands{
@@ -51,17 +52,11 @@ func rosterHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	// Add a field for each player
 	var totalStars float32 = 0
-	for _, playerID := range teamData.Players {
-		playerData, err := db.GetSpecificPlayerData(playerID, bson.M{"stars": 1})
-		if err != nil {
-			log.Println("Error retrieving player data,", err)
-			cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while retrieving the player data.", 0xffcc4d))
-			return
-		}
-		totalStars += playerData.Stars
+	for _, playerInfo := range teamData.Players {
+		totalStars += playerInfo.Stars
 		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
-			Name:   fmt.Sprintf("<@!%s>", playerData.ID),
-			Value:  fmt.Sprintf("Stars: %d", playerData.Stars),
+			Name:   fmt.Sprintf("<@!%s>", playerInfo.ID),
+			Value:  fmt.Sprintf("Stars: %f", playerInfo.Stars),
 			Inline: true,
 		})
 	}
@@ -88,13 +83,13 @@ func rosterHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 		Name: "Franchise Owner",
 		Value: fmt.Sprintf(
-			"<@!%s>\nPosition: %s\nStars: %d", ownerData.ID, ownerData.Stars),
+			"<@!%s>\nStars: %f", ownerData.ID, ownerData.Stars),
 	})
 
 	// Add a field for the star cap and the total stars
 	embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 		Name:  "Stars",
-		Value: fmt.Sprintf("Star Cap: %d, Total Stars: %d", teamData.MaxStars, totalStars),
+		Value: fmt.Sprintf("Star Cap: %f, Total Stars: %f", teamData.MaxStars, totalStars),
 	})
 
 	// Send the embed as a response to the interaction

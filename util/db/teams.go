@@ -8,9 +8,11 @@ import (
 	"time"
 )
 
-var defaultLogo = "" //TODO: add this later
-var mu sync.RWMutex
-var TeamOptions []*discordgo.ApplicationCommandOptionChoice
+var (
+	defaultLogo = "" // TODO: add this late
+	mu          sync.RWMutex
+	TeamOptions []*discordgo.ApplicationCommandOptionChoice
+)
 
 func UpdateTeamOptions() error {
 	teams, err := GetAllTeams()
@@ -27,7 +29,7 @@ func UpdateTeamOptions() error {
 			defer wg.Done()
 			options = append(options, &discordgo.ApplicationCommandOptionChoice{
 				Name:  t.Name,
-				Value: t.RoleID,
+				Value: t.ID,
 			})
 		}(team)
 	}
@@ -68,6 +70,11 @@ func SaveTeamData(teamData *Team) error {
 	c := client.Database("aafl").Collection("teams") // replace with your actual database name
 
 	_, err := c.InsertOne(ctx, teamData)
+	if err != nil {
+		return err
+	}
+
+	err = UpdateTeamOptions()
 	if err != nil {
 		return err
 	}

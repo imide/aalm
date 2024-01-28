@@ -3,3 +3,4 @@ mongo_uri: "mongodb+srv://admin:F96uq3sq2UL2L2JK@aafl-db.a0ahcv2.mongodb.net/?re
 guild_id: "1160685502182215802"
 transactions_channel_id: "1198499128511037450"
 suspension_channel_id: "1198499111914197052"
+fo_role_id: "add"

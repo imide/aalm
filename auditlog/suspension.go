@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/bwmarrin/discordgo"
 	"github.com/imide/aalm/util/db"
-	_ "time"
 )
 
 type SuspensionAction int

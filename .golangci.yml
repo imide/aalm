@@ -1,0 +1,11 @@
+linters:
+  enable:
+    - revive
+    - gofmt
+    - loggercheck
+    - gosimple
+  presets:
+    - performance
+
+issues:
+  fix: true

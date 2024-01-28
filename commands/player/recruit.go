@@ -211,9 +211,11 @@ func recruitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 				// Update the player's data
 
-				recruitData.TeamPlaying = recruiterTeam.ID
-				recruitData.Contracted = true
-				err = db.SavePlayerData(&recruitData)
+				err = db.RecruitPlayer(&recruitData, &recruiterTeam)
+				if err != nil {
+					log.Println("Error recruiting player,", err)
+					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while trying to recruit the player. Please try again later.", 0xffcc4d))
+				}
 
 				// Create a DM channel with the recruiter
 				dmChannel, err := s.UserChannelCreate(recruiterData.ID)

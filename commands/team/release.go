@@ -2,10 +2,13 @@ package team
 
 import (
 	"fmt"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/imide/aalm/commands/cmdutil"
 	"github.com/imide/aalm/util/db"
 )
+
+//
 
 var Release = cmdutil.Commands{
 	Name:        "release",
@@ -22,7 +25,6 @@ var Release = cmdutil.Commands{
 }
 
 func releaseHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
-
 	// Get data
 	_, coachTeam, err := getCoachData(s, i)
 	if err != nil {
@@ -46,19 +48,19 @@ func releaseHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	// Important variables
 
-	var confirmation = &discordgo.MessageEmbed{
+	confirmation := &discordgo.MessageEmbed{
 		Title:       "⚠️ | **Warning**",
 		Description: fmt.Sprintf("Are you sure you want to release <@!%s> from your team?", playerData.ID),
 		Color:       0xffcc4d,
 	}
 
-	var success = &discordgo.MessageEmbed{
+	success := &discordgo.MessageEmbed{
 		Title:       "✅ | **Success**",
 		Description: fmt.Sprintf("<@!%s> has been released from your team. You may view your team's new roster via /roster.", playerData.ID),
 		Color:       0x00ff00,
 	}
 
-	var playerDm = &discordgo.MessageEmbed{
+	playerDm := &discordgo.MessageEmbed{
 		Title:       "⚠️ | **Warning**",
 		Description: fmt.Sprintf("You have been released from %s.", coachTeam.Name),
 		Color:       0xffcc4d,
@@ -67,11 +69,11 @@ func releaseHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 	}
 
-	var acceptButton = cmdutil.CreateButton("Accept", discordgo.SuccessButton, "✅", "accept")
+	acceptButton := cmdutil.CreateButton("Accept", discordgo.SuccessButton, "✅", "accept")
 
-	var denyButton = cmdutil.CreateButton("Deny", discordgo.DangerButton, "❌", "deny")
+	denyButton := cmdutil.CreateButton("Deny", discordgo.DangerButton, "❌", "deny")
 
-	var confirmRow = discordgo.ActionsRow{Components: []discordgo.MessageComponent{*acceptButton, *denyButton}}
+	confirmRow := discordgo.ActionsRow{Components: []discordgo.MessageComponent{*acceptButton, *denyButton}}
 
 	// Actual logic
 
@@ -98,11 +100,7 @@ func releaseHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			case "accept":
 				// Remove player from team
 
-				playerData.TeamPlaying = ""
-				playerData.Contracted = false
-
-				err = db.SavePlayerData(&playerData)
-
+				err := db.DropPlayer(&playerData, &coachTeam)
 				if err != nil {
 					cmdutil.SendInteractionResponse(s, i, cmdutil.CreateEmbed("⚠️ | **Warning**", "An error occurred while removing the player from the team.", 0xffcc4d))
 					return
